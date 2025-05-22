@@ -1,0 +1,156 @@
+# EC2 Deployment Instructions
+
+This guide explains how to deploy the Silo Down application on an Amazon EC2 instance using Docker Compose with NGINX and Let's Encrypt SSL certificates.
+
+## Prerequisites
+
+1. An EC2 instance with:
+   - Ubuntu Server (recommended: 20.04 LTS or newer)
+   - At least 2GB RAM
+   - Security group configured to allow traffic on ports 22 (SSH), 80 (HTTP), and 443 (HTTPS)
+
+2. A domain name pointed to your EC2 instance's IP address
+
+3. Docker and Docker Compose installed on your instance
+
+## Setup Instructions
+
+1. **Install Docker and Docker Compose**
+
+   ```bash
+   # Update packages
+   sudo apt update
+   sudo apt upgrade -y
+
+   # Install required packages
+   sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
+
+   # Add Docker's official GPG key
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+
+   # Add Docker repository
+   sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+
+   # Install Docker
+   sudo apt update
+   sudo apt install -y docker-ce
+
+   # Add your user to the docker group
+   sudo usermod -aG docker ${USER}
+   
+   # Install Docker Compose
+   sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   ```
+
+   Log out and back in for the group changes to take effect.
+
+2. **Clone the Repository**
+
+   ```bash
+   git clone [your-repository-url] silo-down
+   cd silo-down
+   ```
+
+3. **Prepare the Environment**
+
+   Create a `.env` file with the required environment variables:
+
+   ```bash
+   # Database configuration
+   POSTGRES_USER=your_postgres_user
+   POSTGRES_PASSWORD=your_secure_password
+   POSTGRES_DB=silodown
+
+   # Domain and email for Let's Encrypt
+   DOMAIN_NAME=your-domain.com
+   EMAIL=your-email@example.com
+
+   # JWT Secret
+   JWT_SECRET=your_jwt_secret_key
+
+   # Application settings
+   NODE_ENV=production
+   ```
+
+4. **Create Required Directories**
+
+   ```bash
+   mkdir -p certbot/conf
+   mkdir -p certbot/www
+   ```
+
+5. **Deploy with Docker Compose**
+
+   ```bash
+   docker compose -f docker-compose-production.yml up -d
+   ```
+
+   The first time you run this, Certbot will attempt to obtain SSL certificates for your domain.
+
+## How It Works
+
+The production setup includes:
+
+1. **Web Service**: Node.js application running on port 3002
+2. **Database**: PostgreSQL with pgvector extension
+3. **Flyway**: Handles database migrations
+4. **NGINX**: Web server that handles SSL termination and proxies requests to the Node.js application
+5. **Certbot**: Automatically obtains and renews SSL certificates
+
+## Updating the Application
+
+To update the application:
+
+```bash
+# Pull the latest changes
+git pull
+
+# Rebuild and restart containers
+docker-compose -f docker-compose-production.yml up -d --build
+```
+
+## Logs and Troubleshooting
+
+To view logs:
+
+```bash
+# All services
+docker-compose -f docker-compose-production.yml logs
+
+# Specific service
+docker-compose -f docker-compose-production.yml logs web
+docker-compose -f docker-compose-production.yml logs nginx
+```
+
+## SSL Certificate Renewal
+
+SSL certificates are automatically renewed by the Certbot container. The renewal script runs every 12 hours and attempts to renew certificates if they are due for renewal.
+
+## Security Considerations
+
+1. The `.env` file contains sensitive information. Ensure it has appropriate permissions:
+   ```bash
+   chmod 600 .env
+   ```
+
+2. Regularly update your system and Docker images:
+   ```bash
+   sudo apt update && sudo apt upgrade
+   docker compose -f docker-compose-production.yml pull
+   docker compose -f docker-compose-production.yml up -d
+   ```
+
+3. Consider setting up a firewall (e.g., UFW) to restrict access to your server:
+   ```bash
+   sudo apt install ufw
+   sudo ufw allow ssh
+   sudo ufw allow http
+   sudo ufw allow https
+   sudo ufw enable
+   ```
+
+
+   ## SSH into server
+   `ssh -i "~/.ssh/mvp_key.pem" ubuntu@ec2-52-2-125-140.compute-1.amazonaws.com` 
+
