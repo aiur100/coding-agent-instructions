@@ -1,0 +1,14 @@
+# Add Automated Migrations to Deployment Script
+
+The goal is to update the deployment bash script that exists in the `infra-silodown` directory. 
+
+- We have a app/Dockerfile.flyway
+- We have a app/flyway.conf
+
+We need to use these, along with the migrations in app/api/migrations to add automated migrations to the deployment process.
+
+The shell script deployment script is in `infra-silodown/build-deploy.sh` and we should add a way for us to run docker run of that flyway docker container via the Dockerfile.flyway.  The shell script currently runs a CDK deployment that creates an RDS instance and it stores the database user, password, and other information in secrets.
+
+We should add a routine to the shell script that uses the AWS CLI to get the database user, password, and other information from the secrets and then run the flyway docker container with the correct environment variables against that database. 
+
+When this is completely, the shell script will be an end to end solution for deployments.  
